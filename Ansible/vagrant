@@ -1,0 +1,29 @@
+[csmgmt]
+192.168.146.2 ansible_ssh_user=vagrant ansible_ssh_private_key_file=~/.vagrant.d/insecure_private_key
+
+[csagent]
+192.168.146.3 ansible_ssh_user=vagrant ansible_ssh_private_key_file=~/.vagrant.d/insecure_private_key
+
+[csmgmt:vars]
+ansible_hostname=csmgmt
+ansible_fqdn=csmgmt
+MySQLRoot=root
+MySQLMaxConnections=700
+MySQLPass=engine123
+CloudDBUser=cloud
+CloudDBPass=engine123
+ManagementIP=192.168.146.2
+AgentIP=192.168.146.3
+NetworkPrefix=192.168.146
+GatewayIP=192.168.146.1
+PodStartIP=192.168.146.70
+PodEndIP=192.168.146.90
+PublicStartIP=192.168.146.91
+PublicEndIP=192.168.146.121
+SysTemplateURLurl46=http://192.168.1.69/systemvm64template-4.6.0-xen.vhd.bz2
+
+VhdutilURL=http://192.168.1.69/vhd-util
+
+[csagent:vars]
+AgentIP=192.168.146.3
+GatewayIP=192.168.146.1

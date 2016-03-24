@@ -1,0 +1,89 @@
+---
+################################################################################
+# This provision.yml file will be executed for adjusting vm's environment
+# It will:
+# 1. Set the proxy in yum.conf(For speeding up the deployment). 
+# 2. Setup the repository for installing software. 
+# 3. Setup the proxy for yum. 
+# 4. Epel Repository (aliyun.com)
+# 5. Regenerate the cache of the yum.
+# 6. yum update and install some necessary packages
+# 7. Disable SELinux
+# 8. Allow root SSH access.
+
+- hosts: all
+  sudo: yes
+  gather_facts: no
+  remote_user: root
+
+  tasks:
+
+  #######################################################
+  #  1. Remove CentOS Repo
+  #
+  - name: Remove Origin CentOS Repo
+    shell: mkdir -p /etc/yum.repos.d/Backup && mv -f /etc/yum.repos.d/CentOS-* /etc/yum.repos.d/Backup/ 2>/dev/null
+    ignore_errors: yes
+
+  #######################################################
+  #  2. Setup the mirrors.aliyun.com Repository
+  #
+  - name: Setup the mirrors.aliyun.com Repository
+    shell: wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-6.repo
+    ignore_errors: yes
+
+  #######################################################
+  #  3. Setup the proxy for yum
+  #
+  - name: Setup the proxy
+    shell: echo "proxy=http://192.168.0.79:3128">>/etc/yum.conf
+    ignore_errors: yes
+
+  #######################################################
+  #  4. Setup epel Repository
+  #
+  - name: Setup epel Repository
+    shell: wget -O /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-6.repo
+    ignore_errors: yes
+
+  #######################################################
+  #  5. Re-make Repo Cache
+  #
+  - name: Re-generate the repository cache
+    shell: yum clean all && yum makecache
+    ignore_errors: yes
+
+  #######################################################
+  #  6. yum update and install some necessary packages
+  #
+  - name: yum update and install some necessary packages
+    shell: yum update -y && yum install -y vim libselinux-python
+    ignore_errors: yes
+
+  #######################################################
+  #  7. Disable SELinux
+  #
+  - name: Set SELinux to disabled
+    selinux: policy=targeted state=disabled
+
+  - name: Disable SELinux for now
+    ignore_errors: true
+    shell: setenforce 0 
+
+  #######################################################
+  #  8. Allow root SSH access.
+  #
+- hosts: all
+  sudo: yes
+  remote_user: root
+
+  tasks:
+
+  - name: Allow root SSH access
+    action: lineinfile dest=/etc/ssh/sshd_config regexp="^#PermitRootLogin" line="PermitRootLogin yes" state=present 
+    notify: Restart sshd
+  
+  
+  handlers:
+  - name: Restart sshd
+    service: name=sshd state=restarted

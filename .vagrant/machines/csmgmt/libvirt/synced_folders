@@ -1,0 +1,1 @@
+{"rsync":{"/vagrant":{"guestpath":"/vagrant","hostpath":"/home/igw/img/juju/vagrant/CloudStackTestXen","disabled":false,"__vagrantfile":true,"owner":"vagrant","group":"vagrant"}}}

@@ -1,0 +1,24 @@
+---
+################################################################################
+# This cloudstackagent.yml is used for deploying cloudstack agent node specified.
+# It will:
+# 1. Setup the NTP Server
+# 2. Install Cloudstack Agent 
+# 
+
+###########################  Restart the sshd configuration for letting root login ##################################
+- hosts: csagent
+  sudo: yes
+  remote_user: root
+
+  tasks:
+
+   - name: Allow root SSH access
+     action: lineinfile dest=/etc/ssh/sshd_config regexp="^#PermitRootLogin" line="PermitRootLogin yes" state=present 
+     notify: Restart sshd
+
+
+  handlers:
+   - name: Restart sshd
+     service: name=sshd state=restarted
+     #action: service sshd state=restarted

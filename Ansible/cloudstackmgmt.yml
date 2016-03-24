@@ -1,0 +1,179 @@
+---
+################################################################################
+# This cloudstackmgmt.yml is used for deploying cloudstack mgmt node specified.
+# It will:
+# 1. Setup the NTP Server.
+# 2. NFS Server Setup.
+# 3. Install MySQL.
+# 4. Configure the database.
+# 5. Start MySQL Service and Remove test user.
+# 6. Configure cloudstack Repo.
+# 7. Install CloudStack Management Server.
+# 8. Configure the CloudStack Management Server.
+# 9. Download vhd-utils to corresponding directories.  
+
+########################### 1. Set the NTP Server ##################################
+- hosts: csmgmt
+  sudo: yes
+  remote_user: root
+  roles:
+    - role: ansible-role-ntp
+      ntp_config_server: [2.ubuntu.pool.ntp.org, 1.ubuntu.pool.ntp.org, 3.cn.pool.ntp.org]
+
+########################### 2. NFS Server Setup #####################################
+- hosts: csmgmt
+  sudo: yes
+  remote_user: root
+ 
+  tasks:
+ 
+    - name: Make the nfs directory
+      shell: mkdir -p /home/public && chmod 777 -R /home/public
+ 
+    - name: Make the nfs pri directory
+      shell: mkdir -p /home/pri && chmod 777 -R /home/pri
+ 
+- hosts: csmgmt
+  sudo: yes
+  remote_user: root
+  roles:
+    - role: ansible-role-nfs
+      nfs_exports: { "/home/public *(rw,sync,no_root_squash)", "/home/pri *(rw,sync,no_root_squash)" }
+
+########################### 3. Install MySQL ##########################################
+- hosts: csmgmt
+  sudo: yes
+  remote_user: root
+
+  tasks:
+
+    - name: Install MySQL server
+      yum: name=mysql-server state=present
+  
+    - name: Install MySQL python module
+      yum: name=MySQL-python state=present
+
+########################### 4. Configure the database ##################################
+    - name: Append CloudStack specific settings to my.cnf
+      lineinfile: dest=/etc/my.cnf
+                  insertbefore="^\[mysqld_safe\]"
+                  line="# CloudStack MySQL settings\\ninnodb_rollback_on_timeout=1\\ninnodb_lock_wait_timeout=600\\nmax_connections={{ MySQLMaxConnections }}\\nlog-bin=mysql-bin\\nbinlog-format = \\'ROW\\'\\n" 
+                  state=present
+
+########################### 5. Start MySQL service and remove test users/db ##################################
+    - name: Start the MySQL daemon 
+      service: name=mysqld state=started enabled=true
+
+# Just run once.          
+    - name: Remove anonymous MySQL user for {{ ansible_hostname }}
+      action: mysql_user user="" host="{{ ansible_hostname }}" state="absent"
+      run_once: true
+
+    - name: Remove anonymous MySQL user for {{ ansible_fqdn }}
+      action: mysql_user user="" host="{{ ansible_fqdn }}" state="absent"
+      run_once: true
+
+    - name: Remove anonymous MySQL user for localhost
+      action: mysql_user user="" state="absent"
+      run_once: true
+
+    - name: Remove the MySQL test DB
+      action: mysql_db db=test state=absent
+      run_once: true
+
+    - name: Secure MySQL installation / change root user password
+      mysql_user: login_user=root
+                  login_password=''
+                  name=root
+                  password={{ MySQLPass | mandatory }} 
+                  priv=*.*:ALL,GRANT
+                  host={{ item }}
+      with_items:
+        - "{{ ansible_hostname }}"
+        - "{{ ansible_fqdn }}"
+        - 127.0.0.1
+        - ::1
+        - localhost
+      run_once: true
+
+    - name: Open MySQL tcp 3306
+      shell: iptables -A INPUT -p tcp -m tcp --dport 3306 -j ACCEPT
+
+########################### 6. Configure cloudstack Repo ##########################################
+- hosts: csmgmt
+  sudo: yes
+  remote_user: root
+
+  tasks:
+
+    - name: Configure CloudStack Repo
+      template: src=templates/cloudstack46.repo.j2 dest=/etc/yum.repos.d/cloudstack46.repo mode=0644
+
+    - name: Re-generate the repository cache
+      shell: yum clean all && yum makecache
+
+###########################  7. Install cloudstack management server ##################################
+- hosts: csmgmt
+  sudo: yes
+  remote_user: root
+
+  tasks:
+
+    - name: Install CloudStack management server
+      yum: name=cloudstack-management state=present
+
+    - name: Configure CloudStack database connectvity on additional management server
+      shell: cloudstack-setup-databases {{ CloudDBUser }}:{{ CloudDBPass | mandatory }}@localhost --deploy-as={{ MySQLRoot }}:{{ MySQLPass | mandatory }} -i {{ ManagementIP }}>> /root/cs_dbinstall.out 2>&1
+
+
+###########################  8. Configure the CloudStack Management Server ############################
+- hosts: csmgmt
+  sudo: yes
+  remote_user: root
+
+  tasks:
+    - name: make dir of /mnt1
+      shell: mkdir /mnt1
+
+    - name: Mount NFS secondary storage
+      mount: name=/mnt1 src={{ ManagementIP }}:/home/public fstype=nfs state=mounted
+
+    - name: Download CloudStack 4.6 system VM template(kvm)
+      shell: /usr/share/cloudstack-common/scripts/storage/secondary/cloud-install-sys-tmplt -m /mnt1 -u {{ SysTemplateURLurl46 }} -h xenserver -F
+
+    - name: Umount NFS secondary storage
+      mount: name=/mnt1 src={{ ManagementIP }}:/home/public fstype=nfs state=absent
+
+    - name: Open Cloudstack tcp 8080
+      shell: iptables -A INPUT -p tcp -m tcp --dport 8080 -j ACCEPT
+              
+    - name: Start CloudStack Management Service
+      shell: cloudstack-setup-management
+
+    - name: Save iptables
+      service: name=iptables state=restarted
+
+    - name: save iptables
+      shell: /sbin/service iptables save
+
+    - name: Copy pip cache To Destination
+      copy: src=templates/pipcache2.tar.gz dest=/root/pipcache2.tar.gz owner=root group=root mode=0644
+
+    - name: Tar Remotely
+      shell: tar xzvf /root/pipcache2.tar.gz
+
+    - name: Install CloudMonkey
+      shell: yum install -y python-pip && pip install cloudmonkey
+
+###########################  9. vhd-utils ###################################################
+- hosts: csmgmt
+  sudo: yes
+  remote_user: root
+
+  tasks:
+    - name: Download vhd-util for Xenserver hypervisors
+      get_url: url={{ VhdutilURL }} dest={{ item }} mode=0755
+      with_items:
+        - /usr/share/cloudstack-common/scripts/vm/hypervisor/xenserver/
+        - /usr/share/cloudstack-common/scripts/vm/hypervisor/xenserver/xenserver60/
+        - /usr/share/cloudstack-common/scripts/vm/hypervisor/xenserver/xenserver62/

@@ -1,0 +1,21 @@
+- hosts: csagent
+  sudo: yes
+  remote_user: root
+  roles:
+    - role: network
+      network_bridge_interfaces:
+        - device: cloudbr0
+          type: bridge
+          address: "{{ AgentIP }}"
+          netmask: 255.255.255.0
+          #gateway: "{{ GatewayIP }}"
+          bootproto: static
+          stp: "on"
+          ports: [eth1]
+
+- hosts: csagent
+  sudo: yes
+  remote_user: root
+ 
+  tasks:
+    - pause: minutes=2
