@@ -39,22 +39,21 @@
 #########################################################################################
 # 
 - name: Apply CloudStack configuration to all nodes
-  hosts: csmgmt
+  hosts: all
   sudo: yes
   
   #########################################################################################
   # Vars and vars_prompt
   #  
-  vars_prompt:
+  #vars_prompt:
 
-    - name: "KVMPassword"
-      prompt: "KVM host root password"
-      private: yes
+  #  - name: "XSPassword"
+  #    prompt: "KVM host root password"
+  #    private: yes
 
   vars:
 
     CMConfig:
-      #NFSHost: "{{ hostvars.csmgmt.ManagementIP }}"
       NFSHost: "{{ ManagementIP }}"
       NFSSecondaryShare: /home/public
       NFSPrimaryShare: /home/pri
@@ -89,25 +88,27 @@
       PublicGateway: "{{ GatewayIP }}"
       ClusterName: FirstCluster
       ClusterHypervisor: XenServer
-      #KVMHostIP: "{{ hostvars.csmgmt.AgentIP }}"
-      KVMHostIP: "{{ AgentIP }}"
-      KVMUsername: root
-      KVMPassword: password
+      XSHostIP: "{{ AgentIP }}"
+      XSUsername: root
+      XSPassword: password
   
   #########################################################################################
   # Tasks
   #
   tasks:
-    #- name: Validate input - KVMServer host password
-    #  fail: msg="Missing or incorrect KVM Host password."
-    - name: Upgrade cloudmonkey
-      shell: easy_install --upgrade pip && pip install --upgrade setuptools && pip install --upgrade distribute && wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python 
+    #- name: Upgrade cloudmonkey
+    #  shell: easy_install --upgrade pip && pip install --upgrade setuptools && pip install --upgrade distribute && wget https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py -O - | python 
 
-    #- name: Validate input - KVMServer host password
-    #  fail: msg="Missing or incorrect KVM Host password."
-    #  when: KVMPassword is not defined or ( KVMPassword is defined and KVMPassword  == "" )
-    #  tags:
-    #    - cmconfig
+
+    #######################################################
+    # Change secondary storage download url
+    - name: Change secondary storage download url
+      shell: cloudmonkey update configuration name=secstorage.allowed.internal.sites value=192.168.0.0/16
+
+    #######################################################
+    # Change host IP of Cloudstack management server, to eth1!
+    - name: Change cloudstack management host IP Address
+      shell: cloudmonkey update configuration name=host value={{ ManagementIP }}
 
     #######################################################
     # Configure first zone
@@ -251,7 +252,7 @@
         - cmconfig
 
     - name: Add XS host
-      shell: cloudmonkey add host zoneid={{ ZoneID.stdout }} podid={{ PodID.stdout }}  clusterid={{ ClusterID.stdout }} hypervisor={{ CMConfig.ClusterHypervisor }} username={{ CMConfig.KVMUsername }} password={{ KVMPassword | mandatory }}  url=http://{{ CMConfig.KVMHostIP }}
+      shell: cloudmonkey add host zoneid={{ ZoneID.stdout }} podid={{ PodID.stdout }}  clusterid={{ ClusterID.stdout }} hypervisor={{ CMConfig.ClusterHypervisor }} username={{ CMConfig.XSUsername }} password={{ CMConfig.XSPassword | mandatory }}  url=http://{{ CMConfig.XSHostIP }}
       tags:
         - cmconfig
 
@@ -280,8 +281,8 @@
 
     #######################################################
     # Change secondary storage download url
-    - name: Change secondary storage download url
-      shell: cloudmonkey update configuration name=secstorage.allowed.internal.sites value=192.168.0.0/16
+    #- name: Change secondary storage download url
+    #  shell: cloudmonkey update configuration name=secstorage.allowed.internal.sites value=192.168.0.0/16
 
     #######################################################
     # Restart the cloudstack-management servie

@@ -2,16 +2,16 @@
 # vi: set ft=ruby :
 
 ############### Definitions Comes Here #################
-CLOUDSTACK_MGMT_IP = "192.168.146.2"
-CLOUDSTACK_MGMT_HOSTNAME = "csmgmt"
-CLOUDSTACK_AGENT_IP = "192.168.146.3"
-CLOUDSTACK_AGENT_HOSTNAME = "csagent"
-CLOUDSTACK_NETWORK_PREFIX = "192.168.146"
-CLOUDSTACK_GATEWAY_IP = "192.168.146.1"
-POD_START_IP = "192.168.146.70"
-POD_END_IP = "192.168.146.90"
-PUBLIC_START_IP = "192.168.146.91"
-PUBLIC_END_IP = "192.168.146.121"
+CLOUDSTACK_MGMT_IP = "192.168.151.2"
+CLOUDSTACK_MGMT_HOSTNAME = "csmgmtv1"
+CLOUDSTACK_AGENT_IP = "192.168.151.3"
+CLOUDSTACK_AGENT_HOSTNAME = "csagentv1"
+CLOUDSTACK_NETWORK_PREFIX = "192.168.151"
+CLOUDSTACK_GATEWAY_IP = "192.168.151.1"
+POD_START_IP = "192.168.151.70"
+POD_END_IP = "192.168.151.90"
+PUBLIC_START_IP = "192.168.151.91"
+PUBLIC_END_IP = "192.168.151.121"
 
 ############### Write a inventory file, used by Ansible #####
 ############### ./Ansible/vagrant will be used in provision ##### 
@@ -52,35 +52,37 @@ Vagrant.configure(2) do |config|
   config.ssh.password = 'vagrant'
   config.ssh.insert_key = 'true'
   config.vm.provider :libvirt do |domain|
-    #domain.cpus = 4
     domain.nic_model_type = 'e1000'
     domain.memory = 384
     domain.nested = true
     domain.cpu_mode = 'host-passthrough'
   end
 
-  # csmgmt node. 
+  # csmgmtv1 node. 
   # Add one networking, modify hostname, define memory, CPU cores.
-  config.vm.define :csmgmt do |csmgmt|
-    csmgmt.vm.box = "centos67rootpasswd"
-    csmgmt.vm.hostname = CLOUDSTACK_MGMT_HOSTNAME
-    csmgmt.vm.network :private_network, :ip => CLOUDSTACK_MGMT_IP
-    csmgmt.vm.provider :libvirt do |domain|
+  config.vm.define :csmgmtv1 do |csmgmtv1|
+    csmgmtv1.vm.box = "centos67rootpasswd"
+    csmgmtv1.vm.hostname = CLOUDSTACK_MGMT_HOSTNAME
+    csmgmtv1.vm.network :private_network, :ip => CLOUDSTACK_MGMT_IP
+    csmgmtv1.vm.provider :libvirt do |domain|
       domain.memory = 4096
       domain.cpus = 2
       domain.nested = true
+      domain.disk_bus = 'virtio'
+      domain.nic_model_type = 'virtio'
+      domain.volume_cache = 'writeback'
     end
   end
 
-  # csagent node.
+  # csagentv1 node.
   # Add one networking, modify hostname, define memory, CPU cores.
-  config.vm.define :csagent do |csagent|
-    csagent.vm.box = "Xen62Patched"
-    csagent.vm.hostname = CLOUDSTACK_AGENT_HOSTNAME
-    csagent.vm.network :private_network, :ip => CLOUDSTACK_AGENT_IP, :mac => "08:00:27:B2:9D:5C"
+  config.vm.define :csagentv1 do |csagentv1|
+    csagentv1.vm.box = "Xen62Patched"
+    csagentv1.vm.hostname = CLOUDSTACK_AGENT_HOSTNAME
+    csagentv1.vm.network :private_network, :ip => CLOUDSTACK_AGENT_IP, :mac => "08:00:27:B2:9D:5C"
     # Disable mounting of vagrant folder as it's not supported on xenserver
-    csagent.vm.synced_folder ".", "/vagrant", disabled: true
-    csagent.vm.provider :libvirt do |domain|
+    csagentv1.vm.synced_folder ".", "/vagrant", disabled: true
+    csagentv1.vm.provider :libvirt do |domain|
       domain.memory = 8192
       domain.cpus = 4
       domain.nested = true
@@ -90,16 +92,16 @@ Vagrant.configure(2) do |config|
     end
   end
 
-  # Run Ansible against csmgmt, csmgmt will be ready for deploying CloudStack.
-  config.vm.define "csmgmt" do |csmgmt|
-    csmgmt.vm.provision :ansible do |ansible|
+  # Run Ansible against csmgmtv1, csmgmtv1 will be ready for deploying CloudStack.
+  config.vm.define "csmgmtv1" do |csmgmtv1|
+    csmgmtv1.vm.provision :ansible do |ansible|
       ansible.playbook = "./Ansible/provision.yml"
     end
   end
 
   # cloudstackmgmt.yml should only provisioned on CLOUDSTACK_MGMT_HOSTNAME
-  config.vm.define "csmgmt" do |csmgmt|
-    csmgmt.vm.provision :ansible do |ansible|
+  config.vm.define "csmgmtv1" do |csmgmtv1|
+    csmgmtv1.vm.provision :ansible do |ansible|
       ansible.playbook = "./Ansible/cloudstackmgmt.yml"
       ansible.limit = CLOUDSTACK_MGMT_HOSTNAME
       ansible.inventory_path = "./Ansible/vagrant"
@@ -107,8 +109,8 @@ Vagrant.configure(2) do |config|
   end
 
   ### # Before provision cloudstackagent packages, change cloudbr0 bridged eth1
-  ### config.vm.define "csagent" do |csagent|
-  ###   csagent.vm.provision :ansible do |ansible|
+  ### config.vm.define "csagentv1" do |csagentv1|
+  ###   csagentv1.vm.provision :ansible do |ansible|
   ###     ansible.playbook = "./Ansible/agentcloudbr0.yml"
   ###     ansible.limit = CLOUDSTACK_AGENT_HOSTNAME
   ###     ansible.inventory_path = "./Ansible/vagrant"
@@ -116,8 +118,8 @@ Vagrant.configure(2) do |config|
   ### end
 
   ### # cloudstackagent.yml should only provisioned on CLOUDSTACK_AGENT_HOSTNAME
-  ### config.vm.define "csagent" do |csagent|
-  ###   csagent.vm.provision :ansible do |ansible|
+  ### config.vm.define "csagentv1" do |csagentv1|
+  ###   csagentv1.vm.provision :ansible do |ansible|
   ###     ansible.playbook = "./Ansible/cloudstackagent.yml"
   ###     ansible.limit = CLOUDSTACK_AGENT_HOSTNAME
   ###     ansible.inventory_path = "./Ansible/vagrant"

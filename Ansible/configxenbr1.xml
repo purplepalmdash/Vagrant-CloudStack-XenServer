@@ -1,0 +1,24 @@
+- hosts: all
+  sudo: yes
+  remote_user: root
+
+  tasks:
+    - name: Get host uuid and write it into the register
+      command: xe host-list --minimal
+      register: xs_hostid
+
+    - name: Discover eth1
+      command: xe pif-scan host-uuid={{ xs_hostid.stdout }}
+
+    - name: Retrive the eth1 uuid
+      command: xe pif-list device=eth1 params=uuid --minimal
+      register: eth1_uuid
+
+    - name: Set eth1 the staticIP, netmask, gateway, DNS. 
+      command: xe pif-reconfigure-ip uuid={{ eth1_uuid.stdout }} mode=static IP={{ AgentIP }} netmask=255.255.255.0 gateway={{ GatewayIP }} DNS=180.76.76.76
+
+    - name: Disable host-management
+      command: xe host-management-disable
+
+    - name: Re-Configure the host-management(This will change eth1 to mgmt interface)
+      command: xe host-management-reconfigure pif-uuid={{ eth1_uuid.stdout }}

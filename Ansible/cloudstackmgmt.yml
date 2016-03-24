@@ -13,7 +13,7 @@
 # 9. Download vhd-utils to corresponding directories.  
 
 ########################### 1. Set the NTP Server ##################################
-- hosts: csmgmt
+- hosts: all
   sudo: yes
   remote_user: root
   roles:
@@ -21,7 +21,7 @@
       ntp_config_server: [2.ubuntu.pool.ntp.org, 1.ubuntu.pool.ntp.org, 3.cn.pool.ntp.org]
 
 ########################### 2. NFS Server Setup #####################################
-- hosts: csmgmt
+- hosts: all
   sudo: yes
   remote_user: root
  
@@ -33,7 +33,7 @@
     - name: Make the nfs pri directory
       shell: mkdir -p /home/pri && chmod 777 -R /home/pri
  
-- hosts: csmgmt
+- hosts: all
   sudo: yes
   remote_user: root
   roles:
@@ -41,7 +41,7 @@
       nfs_exports: { "/home/public *(rw,sync,no_root_squash)", "/home/pri *(rw,sync,no_root_squash)" }
 
 ########################### 3. Install MySQL ##########################################
-- hosts: csmgmt
+- hosts: all
   sudo: yes
   remote_user: root
 
@@ -100,7 +100,7 @@
       shell: iptables -A INPUT -p tcp -m tcp --dport 3306 -j ACCEPT
 
 ########################### 6. Configure cloudstack Repo ##########################################
-- hosts: csmgmt
+- hosts: all
   sudo: yes
   remote_user: root
 
@@ -113,7 +113,7 @@
       shell: yum clean all && yum makecache
 
 ###########################  7. Install cloudstack management server ##################################
-- hosts: csmgmt
+- hosts: all
   sudo: yes
   remote_user: root
 
@@ -127,7 +127,7 @@
 
 
 ###########################  8. Configure the CloudStack Management Server ############################
-- hosts: csmgmt
+- hosts: all
   sudo: yes
   remote_user: root
 
@@ -166,7 +166,7 @@
       shell: yum install -y python-pip && pip install cloudmonkey
 
 ###########################  9. vhd-utils ###################################################
-- hosts: csmgmt
+- hosts: all
   sudo: yes
   remote_user: root
 

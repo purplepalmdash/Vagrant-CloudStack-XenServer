@@ -57,7 +57,7 @@
   #  6. yum update and install some necessary packages
   #
   - name: yum update and install some necessary packages
-    shell: yum update -y && yum install -y vim libselinux-python
+    shell: yum update -y && yum install -y vim libselinux-python iotop
     ignore_errors: yes
 
   #######################################################
