@@ -22,3 +22,6 @@
 
     - name: Re-Configure the host-management(This will change eth1 to mgmt interface)
       command: xe host-management-reconfigure pif-uuid={{ eth1_uuid.stdout }}
+
+    - name: Disable the firewall thus we will avoid many problems during devs
+      command: system-config-securitylevel-tui --disabled -q
